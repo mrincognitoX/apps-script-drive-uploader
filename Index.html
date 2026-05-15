@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>آپلودر هوشمند گوگل درایو</title>
+    <!-- استفاده از Tailwind CSS برای ظاهر جذاب -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap');
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .loader {
+            border-top-color: #3b82f6;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* کاستوم اسکرول‌بار برای باکس لاگ */
+        #log-box::-webkit-scrollbar { width: 6px; }
+        #log-box::-webkit-scrollbar-track { background: #1f2937; }
+        #log-box::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
+        <!-- هدر -->
+        <div class="bg-blue-600 p-6 text-white text-center">
+            <h1 class="text-3xl font-bold mb-2"><i class="fa-brands fa-google-drive mr-2"></i> آپلودر پیشرفته درایو</h1>
+            <p class="text-blue-100 text-sm">لینک بدهید، در گوگل درایو تحویل بگیرید (پشتیبانی از فایل‌های حجیم)</p>
+        </div>
+
+        <div class="p-8">
+            <!-- فرم دریافت اطلاعات -->
+            <form id="uploadForm" class="space-y-6">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2" for="url">لینک مستقیم فایل <span class="text-red-500">*</span></label>
+                    <input type="url" id="url" required placeholder="https://example.com/file.zip" 
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition text-left" dir="ltr">
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2" for="folder">نام پوشه در گوگل درایو (اختیاری)</label>
+                    <input type="text" id="folder" placeholder="مثال: دانلودهای تلگرام" 
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
+                    <p class="text-xs text-gray-500 mt-1">اگر پوشه وجود نداشته باشد، ربات خودش آن را می‌سازد.</p>
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 flex justify-center items-center">
+                    <i class="fa-solid fa-cloud-arrow-up ml-2"></i> شروع آپلود
+                </button>
+            </form>
+
+            <!-- بخش لودینگ و وضعیت -->
+            <div id="loadingArea" class="hidden mt-8 text-center">
+                <div class="inline-block w-12 h-12 border-4 border-gray-200 rounded-full loader mb-4"></div>
+                <h3 class="text-lg font-bold text-gray-700">در حال پردازش و انتقال...</h3>
+                <p class="text-sm text-gray-500 mt-2">این عملیات بسته به حجم فایل ممکن است تا چند دقیقه طول بکشد. لطفا صفحه را نبندید.</p>
+            </div>
+
+            <!-- بخش نمایش نتیجه -->
+            <div id="resultArea" class="hidden mt-8">
+                <div id="statusAlert" class="p-4 rounded-lg mb-4 text-center font-bold"></div>
+                
+                <h4 class="font-bold text-gray-700 mb-2 mt-6"><i class="fa-solid fa-terminal ml-1"></i> لاگ‌های عملیات:</h4>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <ul id="log-box" class="font-mono text-sm text-green-400 h-48 overflow-y-auto space-y-1 text-left" dir="ltr">
+                        <!-- لاگ‌ها اینجا چاپ می‌شوند -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const url = document.getElementById('url').value;
+            const folderName = document.getElementById('folder').value;
+            const btn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loadingArea');
+            const resultArea = document.getElementById('resultArea');
+            const logBox = document.getElementById('log-box');
+            
+            // تغییر وضعیت UI
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            loading.classList.remove('hidden');
+            resultArea.classList.add('hidden');
+            logBox.innerHTML = '';
+
+            // ارسال درخواست به بک‌اند گوگل اپ اسکریپت
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    loading.classList.add('hidden');
+                    resultArea.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                    const alertBox = document.getElementById('statusAlert');
+                    
+                    // چاپ لاگ‌ها
+                    if (response.logs && response.logs.length > 0) {
+                        response.logs.forEach(log => {
+                            const li = document.createElement('li');
+                            li.textContent = '> ' + log;
+                            logBox.appendChild(li);
+                        });
+                        // اسکرول به پایین
+                        logBox.scrollTop = logBox.scrollHeight;
+                    }
+
+                    if (response.success) {
+                        alertBox.className = 'p-4 rounded-lg mb-4 text-center font-bold bg-green-100 text-green-800 border border-green-300';
+                        alertBox.innerHTML = `<i class="fa-solid fa-circle-check text-2xl mb-2 block"></i> فایل <b>${response.fileName}</b> با موفقیت آپلود شد!<br><a href="https://drive.google.com/file/d/${response.fileId}/view" target="_blank" class="inline-block mt-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"><i class="fa-solid fa-arrow-up-right-from-square ml-1"></i> مشاهده در درایو</a>`;
+                        document.getElementById('uploadForm').reset();
+                    } else {
+                        alertBox.className = 'p-4 rounded-lg mb-4 text-center font-bold bg-red-100 text-red-800 border border-red-300';
+                        alertBox.innerHTML = `<i class="fa-solid fa-circle-xmark text-2xl mb-2 block"></i> خطا در آپلود:<br><span class="font-normal mt-1 block">${response.error}</span>`;
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    // خطاهای سیستمی و تایم‌اوت گوگل
+                    loading.classList.add('hidden');
+                    resultArea.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    
+                    const alertBox = document.getElementById('statusAlert');
+                    alertBox.className = 'p-4 rounded-lg mb-4 text-center font-bold bg-red-100 text-red-800 border border-red-300';
+                    alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl mb-2 block"></i> خطای سرور گوگل:<br><span class="font-normal mt-1 block">${error.message}</span>`;
+                })
+                .processUploadFromUI(url, folderName);
+        });
+    </script>
+</body>
+</html>
