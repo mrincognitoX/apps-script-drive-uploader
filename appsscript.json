@@ -1,0 +1,16 @@
+{
+"timeZone": "Asia/Tehran",
+"dependencies": {},
+"exceptionLogging": "STACKDRIVER",
+"oauthScopes": [
+"https://www.googleapis.com/auth/drive",
+"https://www.googleapis.com/auth/script.external_request"
+],
+"webapp": {
+"executeAs": "USER_DEPLOYING",
+"access": "MYSELF"
+},
+"executionApi": {
+"access": "ANYONE"
+}
+}
